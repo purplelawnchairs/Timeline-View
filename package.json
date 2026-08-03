@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-timeline-view",
+	"name": "timeline-bases",
 	"version": "1.0.0",
-	"description": "Adds a Timeline view to Bases, plotting dated notes as dots and ranges along a zoomable time axis.",
+	"description": "Plots dated notes from a Base as dots and ranges along a zoomable, pannable time axis.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

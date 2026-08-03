@@ -1,9 +1,10 @@
 {
-	"id": "obsidian-timeline-view",
-	"name": "Timeline",
+	"id": "timeline-bases",
+	"name": "Timeline for Bases",
 	"version": "1.0.0",
-	"minAppVersion": "1.10.0",
-	"description": "Adds a Timeline view to Bases, plotting dated notes as dots and ranges along a zoomable time axis.",
+	"minAppVersion": "1.10.2",
+	"description": "Plots dated notes from a Base as dots and ranges along a zoomable, pannable time axis.",
 	"author": "Harry Brown",
+	"authorUrl": "https://github.com/purplelawnchairs",
 	"isDesktopOnly": false
 }
