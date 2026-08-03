@@ -9,6 +9,8 @@ ranges as bars.
 This plugin is designed as a data visualization tool for structured notes about events on a 
 linear time scale. I use it for history notes, and lifespans of historical figures.
 
+![Timeline Image](https://raw.githubusercontent.com/purplelawnchairs/Timeline-View/refs/heads/main/timeline_1.png)
+
 ## Usage
 
 Create a `.base` file, then pick **Timeline** from the view switcher in the Bases toolbar.
