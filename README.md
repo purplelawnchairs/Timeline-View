@@ -1,8 +1,13 @@
 # Timeline
 
 A custom [Bases](https://help.obsidian.md/bases) view for Obsidian. Notes matching a Base's
-filters are plotted along a horizontal, zoomable time axis — single dates as dots, date
+filters are plotted along a horizontal, zoomable time axis, single dates as dots, date
 ranges as bars.
+
+## Intention
+
+This plugin is designed as a data visualization tool for structured notes about events on a 
+linear time scale. I use it for history notes, and lifespans of historical figures.
 
 ## Usage
 
@@ -13,7 +18,7 @@ Notes are plotted from their frontmatter:
 ```yaml
 ---
 date: 1969-07-20
-category: Space
+category: War
 ---
 ```
 
@@ -21,12 +26,12 @@ category: Space
 ---
 date_start: 1961-05-25
 date_end: 1972-12-19
-category: Space
+category: War
 ---
 ```
 
-A note with a start and end plots as a range bar. A note with only a single date — or only
-one end of a range — plots as a dot. A note with neither is skipped, not flagged as an error.
+A note with a start and end plots as a range bar. A note with only a single date, or only
+one end of a range plots as a dot. 
 
 Dates may be full ISO dates (`1969-07-20`), year and month (`1969-07`), or a bare year
 (`1969`). A bare year is anchored to 1 January for plotting but displays as just the year.
@@ -51,16 +56,6 @@ zero, so 1 BC is year `0000` and 44 BC is `-0043`.
 date: -0043-03-15   # 15 March 44 BC
 ```
 
-The same applies to a bare negative number: `-500` means astronomical year -500, which is
-**501 BC**. If you mean 500 BC, write `500 BC` — the era spelling is unambiguous and is the
-recommended form.
-
-Two limits. Dates outside roughly ±271,821 years cannot be represented and are skipped rather
-than plotted wrongly, so geological timescales are out of range. And the property must be a
-**Text** property — Obsidian's Date type cannot hold a BC value. Property types are vault-wide,
-so if a property already holds ISO dates elsewhere and Obsidian has typed it as Date, use a
-separate property for BC notes.
-
 ## View options
 
 | Option | Default | Purpose |
@@ -75,32 +70,12 @@ separate property for BC notes.
 | Show axis | on | Show or hide the axis and its labels |
 
 Labels sit to the right of their dot or bar and are reserved space during lane packing, so a
-label never runs over the next item — turning them on generally means more lanes. Any
-property can be used, including file properties, so `file.name` shows note titles. Labels
-longer than 60 characters are truncated with an ellipsis.
+label never runs over the next item. Any property can be used, including file properties, 
+so `file.name` shows note titles. 
 
 Colours are assigned from Obsidian's accent palette in first-seen category order, so a given
-category keeps its colour as filters change. Notes with no category render in a muted grey.
-
-## Interaction
-
-- **Scroll** to zoom around the cursor. Zooming out stops at the full span of the data.
-- **Drag** to pan.
-- **Hover** a dot or bar for a card with the note title, its date, and its category. The card
-  is anchored to the item, so the link stays where you can click it.
-- **Click** a dot or bar to open the note. Cmd/Ctrl-click or middle-click opens it in a new
-  tab. The same applies to the title link in the hover card.
-
-Items that would overlap at the current zoom are stacked into lanes above the baseline, so
-nothing is hidden behind anything else.
-
-## Development
-
-```bash
-npm install
-npm run dev     # watching build
-npm run build   # type-check and produce a minified main.js
-```
+category keeps its colour as filters change. Notes with no category render in grey. I'm planning
+to add colour selection based on tags or another variable similar to whats seen in the graph view. 
 
 ## License
 
