@@ -1,0 +1,242 @@
+/* Timeline — a Bases view. All colours come from Obsidian variables so the view
+   follows the active theme. */
+
+.timeline-view {
+	--timeline-label-gap: 6px;
+	/* Mirrored by BASELINE_OFFSET_PX in view.ts. */
+	--timeline-baseline-offset: 3px;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background-color: var(--background-primary);
+}
+
+.timeline-canvas {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+	cursor: grab;
+	touch-action: none;
+}
+
+.timeline-canvas.is-panning {
+	cursor: grabbing;
+}
+
+/* Kept in normal flow rather than absolutely positioned. Embedded bases give the view
+   no definite height, and an absolute scroll layer contributes nothing to the canvas's
+   intrinsic height, collapsing it to zero and clipping every item. In flow, height:100%
+   fills a definite parent and falls back to the content height when there is not one. */
+.timeline-scroll {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.timeline-plot {
+	position: relative;
+	width: 100%;
+	min-height: 100%;
+}
+
+/* The baseline sits at the vertical centre of lane 0: the lane's own offset from the
+   plot bottom, plus half the 14px item height, less half this element's height. */
+.timeline-baseline {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: calc(var(--timeline-baseline-offset) + 6px);
+	height: 2px;
+	background-color: var(--background-modifier-border);
+	pointer-events: none;
+}
+
+.timeline-item {
+	position: absolute;
+	height: 14px;
+	cursor: pointer;
+}
+
+.timeline-item:hover {
+	z-index: 2;
+}
+
+/* The drawn dot or bar. Kept separate from .timeline-item so its opacity and hover
+   filter do not wash out the label sitting alongside it. */
+.timeline-shape {
+	position: absolute;
+	inset: 0;
+	box-sizing: border-box;
+	background-color: var(--timeline-item-color, var(--text-muted));
+	border: 1px solid var(--background-primary);
+	transition: filter 100ms ease-out, box-shadow 100ms ease-out;
+}
+
+.timeline-item:hover .timeline-shape {
+	filter: brightness(1.15);
+	box-shadow: 0 0 0 2px var(--background-modifier-border-hover);
+}
+
+.timeline-item.is-point .timeline-shape {
+	border-radius: 50%;
+}
+
+.timeline-item.is-range .timeline-shape {
+	border-radius: 7px;
+	opacity: 0.9;
+}
+
+/* End caps mark where a range starts and stops, so a short bar still reads
+   differently from a point. */
+.timeline-cap {
+	display: none;
+	position: absolute;
+	/* Kept within the shape rather than overhanging it: a lane-0 item that spills below
+	   the plot creates scroll overflow, which shows a scrollbar on every embedded base. */
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background-color: var(--timeline-item-color, var(--text-muted));
+	filter: brightness(0.7);
+}
+
+.timeline-item.is-range .timeline-cap {
+	display: block;
+}
+
+.timeline-cap.is-start {
+	left: 0;
+	border-radius: 7px 0 0 7px;
+}
+
+.timeline-cap.is-end {
+	right: 0;
+	border-radius: 0 7px 7px 0;
+}
+
+/* Labels */
+
+.timeline-item-label {
+	font-size: var(--font-smallest);
+	line-height: 1;
+	color: var(--text-normal);
+	white-space: nowrap;
+}
+
+/* Sits to the right of the shape. The gap is mirrored by LABEL_GAP_PX in view.ts,
+   which reserves the same space during lane packing. */
+/* Matched to the item's own height and centred by flex, rather than centred with a
+   transform. The text box is taller than the 14px item, so a transform left it
+   overhanging top and bottom, and the bottom overhang forced a scrollbar. */
+.timeline-item > .timeline-item-label {
+	position: absolute;
+	left: calc(100% + var(--timeline-label-gap));
+	top: 0;
+	height: 100%;
+	display: flex;
+	align-items: center;
+}
+
+/* Offscreen box used to measure label widths without a visible reflow. */
+.timeline-measure {
+	position: absolute;
+	top: -9999px;
+	left: 0;
+	visibility: hidden;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+/* Axis */
+
+.timeline-axis {
+	position: relative;
+	flex: 0 0 auto;
+	height: 30px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.timeline-tick {
+	position: absolute;
+	top: 0;
+	pointer-events: none;
+}
+
+.timeline-tick-mark {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 1px;
+	height: 6px;
+	background-color: var(--background-modifier-border);
+}
+
+.timeline-tick-label {
+	position: absolute;
+	top: 8px;
+	left: 0;
+	transform: translateX(-50%);
+	white-space: nowrap;
+	font-size: var(--font-smallest);
+	color: var(--text-muted);
+}
+
+/* Empty state */
+
+.timeline-empty {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	justify-content: center;
+	padding: var(--size-4-4);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/* Hover card */
+
+.timeline-card {
+	position: absolute;
+	z-index: var(--layer-popover);
+	max-width: 280px;
+	padding: var(--size-4-2) var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+	font-size: var(--font-ui-small);
+	pointer-events: auto;
+}
+
+.timeline-card-title {
+	display: block;
+	font-weight: var(--font-medium);
+	margin-bottom: var(--size-2-2);
+}
+
+.timeline-card-date {
+	color: var(--text-muted);
+}
+
+.timeline-card-category {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	margin-top: var(--size-2-2);
+	color: var(--text-muted);
+}
+
+.timeline-card-swatch {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: var(--timeline-item-color, var(--text-muted));
+	flex: 0 0 auto;
+}

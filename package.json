@@ -1,0 +1,27 @@
+{
+	"name": "obsidian-timeline-view",
+	"version": "1.0.0",
+	"description": "Adds a Timeline view to Bases, plotting dated notes as dots and ranges along a zoomable time axis.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"test": "esbuild dates.ts axis.ts layout.ts --outdir=build-test --format=esm --bundle --out-extension:.js=.mjs --external:obsidian --log-level=warning && node tests/run.mjs",
+		"version": "node version-bump.mjs && git add manifest.json versions.json"
+	},
+	"keywords": [
+		"obsidian",
+		"bases",
+		"timeline"
+	],
+	"author": "Harry Brown",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^16.11.6",
+		"builtin-modules": "3.3.0",
+		"esbuild": "0.17.3",
+		"obsidian": "^1.13.1",
+		"tslib": "2.4.0",
+		"typescript": "4.7.4"
+	}
+}
