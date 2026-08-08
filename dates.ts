@@ -13,7 +13,7 @@ const YEAR_ONLY = /^(-?\d{1,6})$/;
 const YEAR_MONTH = /^(-?\d{1,6})-(\d{1,2})$/;
 const ISO_DATE = /^(-?\d{1,6})-(\d{1,2})-(\d{1,2})/;
 /** `500 BC`, `44 BCE`, `1200 AD`, `70 C.E.` */
-const ERA_SUFFIX = /^(\d{1,6})\s*(bce|bc|b\.c\.e\.|b\.c\.|ce|ad|c\.e\.|a\.d\.)$/i;
+const ERA_SUFFIX = /^(\d{1,6})\s*(bce|bc|b\.c\.e\.|b\.c\.|ce|ad|c\.e\.|a\.d\.|ac|AC|a.c.|A.C.|dc|DC|d.c.|D.C.)$/i;
 /** `AD 1200`, `CE 70` */
 const ERA_PREFIX = /^(ad|ce|a\.d\.|c\.e\.)\s*(\d{1,6})$/i;
 
