@@ -95,6 +95,15 @@ function parseEra(input: string): TimePoint | null {
 	return point(utcFromParts(isBc ? 1 - year : year), true);
 }
 
+/**
+ * Parse a date the user typed, in any of the forms the frontmatter accepts. Exported for
+ * the range control's bounds, so typing `3000 BC` there works exactly as it does in a
+ * note's properties.
+ */
+export function parseDateText(raw: string): TimePoint | null {
+	return parseString(raw);
+}
+
 function parseString(raw: string): TimePoint | null {
 	const input = raw.trim();
 	if (!input) return null;
@@ -212,6 +221,31 @@ export function formatPoint(point: TimePoint): string {
 
 export function formatYear(year: number): string {
 	return year < 1 ? `${Math.abs(year - 1)} BC` : String(year);
+}
+
+const MS_DAY_LOCAL = 86400000;
+
+/**
+ * The exclusive end of the period a typed bound names. Someone entering `1000 BC` as the
+ * end of a range means the whole of that year, not the instant it began, so a year-only
+ * bound runs to the start of the next year and a dated one to the end of that day.
+ */
+export function endOfPoint(point: TimePoint): number {
+	if (!point.yearOnly) return point.ms + MS_DAY_LOCAL;
+	const year = new Date(point.ms).getUTCFullYear();
+	return utcFromParts(year + 1);
+}
+
+/**
+ * Label for a range bound. A window spanning centuries has no use for a day and month,
+ * and showing them invites the reader to edit a precision the view cannot display.
+ */
+export function formatRangeBound(ms: number, spanMs: number): string {
+	const d = new Date(ms);
+	const year = d.getUTCFullYear();
+	if (spanMs >= 2 * 365 * MS_DAY_LOCAL) return formatYear(year);
+	if (spanMs >= 60 * MS_DAY_LOCAL) return formatMonthYear(ms);
+	return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${formatYear(year)}`;
 }
 
 export function formatMonthYear(ms: number): string {

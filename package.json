@@ -1,6 +1,6 @@
 {
 	"name": "timeline-bases",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"description": "Plots dated notes from a Base as dots and ranges along a zoomable, pannable time axis.",
 	"main": "main.js",
 	"scripts": {

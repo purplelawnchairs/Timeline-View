@@ -66,10 +66,30 @@ Lanes are packed per band, so a crowded group does not push a sparse one down th
 Bands with nothing dated in them are hidden rather than left as empty space. Turn **Stack
 groups in bands** off to plot every group into one band, as before.
 
+## Range control
+
+Under the axis sits a strip covering the whole extent of the data, with the visible window
+drawn over it. On a timeline running from 14000 BC to the present, wheel zoom alone cannot
+practically reach a named century; this can.
+
+- **Drag the window** to move through time.
+- **Drag either edge** to widen or narrow the window.
+- **Press anywhere on the strip** to jump there, and keep dragging to adjust.
+- **Type a bound** into the field on either side. The same parser as note frontmatter is
+  used, so `3000 BC`, `1969-07` and a bare year all work. A year-only end covers that whole
+  year — `1000 BC` runs through it, not to the instant it began.
+- **Double-click the strip**, or use the button on the right, to fit everything again.
+
+Behind the window, a density strip shows where entries actually fall, so an empty
+millennium is distinguishable from a crowded one before you drag to it.
+
+Turn it off with **Show range control**.
+
 ## Mobile
 
 Drag with one finger to pan — horizontally through time, vertically through the bands.
-Pinch with two fingers to zoom. Tap an item to open its note.
+Pinch with two fingers to zoom. Tap an item to open its note. The range control's window
+and handles are draggable by touch, with a hit area wider than the grip they show.
 
 Dates may be full ISO dates (`1969-07-20`), year and month (`1969-07`), or a bare year
 (`1969`). A bare year is anchored to 1 January for plotting but displays as just the year.
@@ -110,6 +130,7 @@ date: -0043-03-15   # 15 March 44 BC
 | Label property | `file.name` | Which property the label shows |
 | Axis interval (years) | `auto` | Years between tick labels; `auto` fits the zoom level |
 | Show axis | on | Show or hide the axis and its labels |
+| Show range control | on | Overview strip and typed bounds for zooming to a period |
 
 Labels sit to the right of their dot or bar and are reserved space during lane packing, so a
 label never runs over the next item. Items near the right edge carry their label on the left

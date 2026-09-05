@@ -15,6 +15,7 @@ import {
 	KEY_SHOW_AXIS,
 	KEY_SHOW_GROUPS,
 	KEY_SHOW_LABELS,
+	KEY_SHOW_RANGE,
 	KEY_START,
 	TIMELINE_VIEW_TYPE,
 	TimelineView,
@@ -88,6 +89,12 @@ function viewOptions(config: BasesViewConfig): BasesAllOptions[] {
 			type: 'toggle',
 			key: KEY_SHOW_AXIS,
 			displayName: 'Show axis',
+			default: true,
+		},
+		{
+			type: 'toggle',
+			key: KEY_SHOW_RANGE,
+			displayName: 'Show range control',
 			default: true,
 		},
 	];
