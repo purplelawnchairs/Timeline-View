@@ -4,6 +4,9 @@ import './dates.test.mjs';
 import './layout.test.mjs';
 import './card.test.mjs';
 import './label.test.mjs';
+import './edge-labels.test.mjs';
+import './open-ended.test.mjs';
+import './zoom-bounds.test.mjs';
 import './bc.test.mjs';
 import { summary } from './harness.mjs';
 

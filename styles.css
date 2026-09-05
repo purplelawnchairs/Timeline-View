@@ -5,6 +5,8 @@
 	--timeline-label-gap: 6px;
 	/* Mirrored by BASELINE_OFFSET_PX in view.ts. */
 	--timeline-baseline-offset: 3px;
+	/* Mirrored by GROUP_GAP_PX in view.ts. */
+	--timeline-group-gap: 10px;
 	position: relative;
 	display: flex;
 	flex-direction: column;
@@ -45,8 +47,52 @@
 	min-height: 100%;
 }
 
+/* One band per Bases groupBy key. Bands share the x axis and are stacked by the view,
+   which sets `top` and `height` from each band's own lane count. */
+.timeline-group {
+	position: absolute;
+	left: 0;
+	right: 0;
+}
+
+/* A separator only earns its place between bands, so it is drawn on the band itself
+   and suppressed on the first one — and on the sole band of an ungrouped view. */
+.timeline-plot.is-grouped .timeline-group::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: calc(var(--timeline-group-gap) / -2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.timeline-plot.is-grouped .timeline-group:first-child::before {
+	display: none;
+}
+
+/* Pinned to the left edge of the band rather than to the timeline, so the group name
+   stays readable while the view is panned. */
+.timeline-group-header {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 3;
+	max-width: 60%;
+	overflow: hidden;
+	padding: 1px var(--size-2-2);
+	border-radius: var(--radius-s);
+	background-color: var(--background-secondary);
+	color: var(--text-muted);
+	font-size: var(--font-smallest);
+	font-weight: var(--font-medium);
+	line-height: 16px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}
+
 /* The baseline sits at the vertical centre of lane 0: the lane's own offset from the
-   plot bottom, plus half the 14px item height, less half this element's height. */
+   band's floor, plus half the 14px item height, less half this element's height. */
 .timeline-baseline {
 	position: absolute;
 	left: 0;
@@ -120,6 +166,17 @@
 	border-radius: 0 7px 7px 0;
 }
 
+/* A period whose end is unknown runs to today. It is drawn without a closing cap and
+   faded out at the right, so it does not read as a period that genuinely ended today. */
+.timeline-item.is-open .timeline-cap.is-end {
+	display: none;
+}
+
+.timeline-item.is-open .timeline-shape {
+	-webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent 100%);
+	mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent 100%);
+}
+
 /* Labels */
 
 .timeline-item-label {
@@ -141,6 +198,16 @@
 	height: 100%;
 	display: flex;
 	align-items: center;
+}
+
+/* Items near the right edge carry their label on the left instead. The plot is clipped
+   at its own width and cannot be panned past the last entry, so a right-hand label
+   would be cut off with no way to bring it into view. Chosen by labelSide() in
+   layout.ts, which also reserves the space on this side during lane packing. */
+.timeline-item.has-label-left > .timeline-item-label {
+	left: auto;
+	right: calc(100% + var(--timeline-label-gap));
+	justify-content: flex-end;
 }
 
 /* Offscreen box used to measure label widths without a visible reflow. */

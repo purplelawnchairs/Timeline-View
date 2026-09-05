@@ -10,10 +10,14 @@ import {
 	KEY_CATEGORY,
 	KEY_DATE,
 	KEY_END,
+	KEY_EXTEND_OPEN,
 	KEY_LABEL,
 	KEY_SHOW_AXIS,
+	KEY_SHOW_GROUPS,
 	KEY_SHOW_LABELS,
 	KEY_START,
+	KEY_ZOOM_END,
+	KEY_ZOOM_START,
 	TIMELINE_VIEW_TYPE,
 	TimelineView,
 } from './view';
@@ -50,6 +54,18 @@ function viewOptions(config: BasesViewConfig): BasesAllOptions[] {
 		},
 		{
 			type: 'toggle',
+			key: KEY_EXTEND_OPEN,
+			displayName: 'Extend open periods to today',
+			default: true,
+		},
+		{
+			type: 'toggle',
+			key: KEY_SHOW_GROUPS,
+			displayName: 'Stack groups in bands',
+			default: true,
+		},
+		{
+			type: 'toggle',
 			key: KEY_SHOW_LABELS,
 			displayName: 'Show labels',
 			default: false,
@@ -75,6 +91,20 @@ function viewOptions(config: BasesViewConfig): BasesAllOptions[] {
 			key: KEY_SHOW_AXIS,
 			displayName: 'Show axis',
 			default: true,
+		},
+		{
+			type: 'text',
+			key: KEY_ZOOM_START,
+			displayName: 'Zoom start',
+			default: '',
+			placeholder: 'e.g. 3300 BC',
+		},
+		{
+			type: 'text',
+			key: KEY_ZOOM_END,
+			displayName: 'Zoom end',
+			default: '',
+			placeholder: 'e.g. 1200 BC',
 		},
 	];
 }

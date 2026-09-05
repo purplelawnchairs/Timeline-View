@@ -48,6 +48,53 @@ export function zoomDomain(
 }
 
 /**
+ * Apply a view's configured zoom window over the extent of its data. Either bound may be
+ * absent, leaving that edge at the data's own extent.
+ *
+ * A window narrower than `minSpan` — inverted, empty, or a single half-typed bound that
+ * lands the wrong side of the other — is discarded in favour of the data extent. Honouring
+ * it would blank the timeline while the user was still typing, and a blank view gives no
+ * clue which of the two fields is at fault.
+ */
+export function zoomedFit(
+	dataFit: Domain,
+	zoom: { start: number | null; end: number | null },
+	minSpan: number
+): Domain {
+	const start = zoom.start === null ? dataFit.start : zoom.start;
+	const end = zoom.end === null ? dataFit.end : zoom.end;
+	if (end - start < minSpan) return dataFit;
+	return { start, end };
+}
+
+export type LabelSide = 'left' | 'right';
+
+/**
+ * Which side of its shape a label should sit on.
+ *
+ * Labels sit to the right by default, but the plot is clipped at its own width and the
+ * domain cannot be panned past the last item — so a label on a right-hand item would be
+ * cut off with no way for the reader to reach it. Those flip to the left of the shape.
+ * When neither side fits, the side that overflows less is the lesser evil.
+ */
+export function labelSide(
+	shape: [number, number],
+	labelWidth: number,
+	gap: number,
+	plotWidth: number
+): LabelSide {
+	if (labelWidth <= 0) return 'right';
+
+	const rightOverflow = shape[1] + gap + labelWidth - plotWidth;
+	if (rightOverflow <= 0) return 'right';
+
+	const leftOverflow = gap + labelWidth - shape[0];
+	if (leftOverflow <= 0) return 'left';
+
+	return leftOverflow < rightOverflow ? 'left' : 'right';
+}
+
+/**
  * Widen a shape's pixel extent to reserve room for its label. Lane packing works on the
  * reserved extent so a label never overlaps the next item along, while only the shape
  * itself is drawn to the original extent.
@@ -55,9 +102,11 @@ export function zoomDomain(
 export function reserveLabel(
 	shape: [number, number],
 	labelWidth: number,
-	gap: number
+	gap: number,
+	side: LabelSide = 'right'
 ): [number, number] {
 	if (labelWidth <= 0) return shape;
+	if (side === 'left') return [shape[0] - gap - labelWidth, shape[1]];
 	return [shape[0], shape[1] + gap + labelWidth];
 }
 
