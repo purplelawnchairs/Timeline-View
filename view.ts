@@ -331,9 +331,18 @@ export class TimelineView extends BasesView implements HoverParent {
 		// A groupBy that yields one band adds a title and a separator but no structure,
 		// so only treat the view as grouped when Bases actually keyed the data.
 		this.grouped = anyKeyed && this.readShowGroups();
+
+		// With banding switched off, every entry shares a single unnamed band, which is
+		// exactly how the view looked before groups existed.
+		let bands = buckets;
+		if (!this.grouped) {
+			bands = [{ key: '', items }];
+			for (const item of items) item.group = 0;
+		}
+
 		this.items = items;
 		this.itemsByPath = byPath;
-		this.syncGroups(buckets);
+		this.syncGroups(bands);
 		this.measureLabels(items);
 	}
 
@@ -669,7 +678,10 @@ export class TimelineView extends BasesView implements HoverParent {
 	 */
 	private layoutBands(): number {
 		const headerHeight = this.grouped ? GROUP_HEADER_HEIGHT : 0;
-		const floor = this.grouped ? MIN_BAND_HEIGHT : MIN_PLOT_HEIGHT;
+		// Ungrouped, the sole band carries the whole plot, so its floor is the plot's
+		// less the padding above it. Taking MIN_PLOT_HEIGHT here instead would make the
+		// plot taller than the canvas and put a scrollbar on every embedded base.
+		const floor = this.grouped ? MIN_BAND_HEIGHT : MIN_PLOT_HEIGHT - TOP_PADDING;
 
 		let top = TOP_PADDING;
 		let last: TimelineGroup | null = null;
