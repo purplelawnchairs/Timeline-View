@@ -66,30 +66,40 @@ Lanes are packed per band, so a crowded group does not push a sparse one down th
 Bands with nothing dated in them are hidden rather than left as empty space. Turn **Stack
 groups in bands** off to plot every group into one band, as before.
 
-## Range control
+## Zooming to a period
 
-Under the axis sits a strip covering the whole extent of the data, with the visible window
-drawn over it. On a timeline running from 14000 BC to the present, wheel zoom alone cannot
-practically reach a named century; this can.
+A timeline running from 14000 BC to the present makes even a period of centuries too small
+to read. Rather than zooming by hand every time, pin a view to the period it is about:
+set **Zoom start** and **Zoom end** in the view options and save it under a name.
 
-- **Drag the window** to move through time.
-- **Drag either edge** to widen or narrow the window.
-- **Press anywhere on the strip** to jump there, and keep dragging to adjust.
-- **Type a bound** into the field on either side. The same parser as note frontmatter is
-  used, so `3000 BC`, `1969-07` and a bare year all work. A year-only end covers that whole
-  year — `1000 BC` runs through it, not to the instant it began.
-- **Double-click the strip**, or use the button on the right, to fit everything again.
+```yaml
+views:
+  - type: timeline
+    name: Bronze Age
+    zoomStart: 3300 BC
+    zoomEnd: 1200 BC
+  - type: timeline
+    name: Twentieth Century
+    zoomStart: 1900
+    zoomEnd: 1999
+```
 
-Behind the window, a density strip shows where entries actually fall, so an empty
-millennium is distinguishable from a crowded one before you drag to it.
+One Base can hold as many of these as you like, and the view switcher moves between them.
 
-Turn it off with **Show range control**.
+Bounds are parsed by the same code as note frontmatter, so `3300 BC`, `1969-07`, `1969-07-20`
+and a bare year all work. A year-only end covers the whole of that year: `1200 BC` runs
+through it rather than stopping the instant it began.
+
+The window becomes the view's bounds, not merely its opening position — panning and zooming
+out both stop at it, so a view called Bronze Age is still the Bronze Age after the reader
+has moved around inside it. Leave either field blank to leave that edge at the extent of
+the data. A window that is inverted or narrower than a day is ignored rather than blanking
+the view, so a half-typed bound cannot leave you staring at nothing.
 
 ## Mobile
 
 Drag with one finger to pan — horizontally through time, vertically through the bands.
-Pinch with two fingers to zoom. Tap an item to open its note. The range control's window
-and handles are draggable by touch, with a hit area wider than the grip they show.
+Pinch with two fingers to zoom. Tap an item to open its note.
 
 Dates may be full ISO dates (`1969-07-20`), year and month (`1969-07`), or a bare year
 (`1969`). A bare year is anchored to 1 January for plotting but displays as just the year.
@@ -130,7 +140,8 @@ date: -0043-03-15   # 15 March 44 BC
 | Label property | `file.name` | Which property the label shows |
 | Axis interval (years) | `auto` | Years between tick labels; `auto` fits the zoom level |
 | Show axis | on | Show or hide the axis and its labels |
-| Show range control | on | Overview strip and typed bounds for zooming to a period |
+| Zoom start | blank | Pin the view's left edge to a date, e.g. `3300 BC` |
+| Zoom end | blank | Pin the view's right edge to a date, e.g. `1200 BC` |
 
 Labels sit to the right of their dot or bar and are reserved space during lane packing, so a
 label never runs over the next item. Items near the right edge carry their label on the left

@@ -47,6 +47,26 @@ export function zoomDomain(
 	);
 }
 
+/**
+ * Apply a view's configured zoom window over the extent of its data. Either bound may be
+ * absent, leaving that edge at the data's own extent.
+ *
+ * A window narrower than `minSpan` — inverted, empty, or a single half-typed bound that
+ * lands the wrong side of the other — is discarded in favour of the data extent. Honouring
+ * it would blank the timeline while the user was still typing, and a blank view gives no
+ * clue which of the two fields is at fault.
+ */
+export function zoomedFit(
+	dataFit: Domain,
+	zoom: { start: number | null; end: number | null },
+	minSpan: number
+): Domain {
+	const start = zoom.start === null ? dataFit.start : zoom.start;
+	const end = zoom.end === null ? dataFit.end : zoom.end;
+	if (end - start < minSpan) return dataFit;
+	return { start, end };
+}
+
 export type LabelSide = 'left' | 'right';
 
 /**
@@ -72,90 +92,6 @@ export function labelSide(
 	if (leftOverflow <= 0) return 'left';
 
 	return leftOverflow < rightOverflow ? 'left' : 'right';
-}
-
-/**
- * The visible domain expressed as a pixel window over the full extent, for the range
- * control's overview strip. The view is always clamped inside the fit, so the window is
- * always inside the track; it is clamped again here rather than trusting that.
- */
-export function rangeWindow(
-	view: Domain,
-	fit: Domain,
-	trackWidth: number
-): { left: number; width: number } {
-	const fitSpan = fit.end - fit.start;
-	if (fitSpan <= 0 || trackWidth <= 0) return { left: 0, width: trackWidth };
-
-	const left = ((view.start - fit.start) / fitSpan) * trackWidth;
-	const width = ((view.end - view.start) / fitSpan) * trackWidth;
-
-	const boundedLeft = Math.min(Math.max(left, 0), trackWidth);
-	return { left: boundedLeft, width: Math.min(Math.max(width, 0), trackWidth - boundedLeft) };
-}
-
-/**
- * Move one edge of the visible domain, leaving the other where it is. Used by the range
- * control's handles, where the pointer position is the new edge outright rather than a
- * delta. The dragged edge is stopped `minSpan` short of the fixed one so a handle
- * dragged past its partner collapses the window instead of inverting it.
- */
-export function resizeDomain(
-	view: Domain,
-	fit: Domain,
-	edge: 'start' | 'end',
-	ms: number,
-	minSpan: number
-): Domain {
-	const fitSpan = fit.end - fit.start;
-	if (fitSpan <= 0) return { start: fit.start, end: fit.start };
-
-	const span = Math.min(minSpan, fitSpan);
-	const bounded = Math.min(Math.max(ms, fit.start), fit.end);
-
-	if (edge === 'start') {
-		const start = Math.max(Math.min(bounded, view.end - span), fit.start);
-		return { start, end: Math.max(view.end, start + span) };
-	}
-
-	const end = Math.min(Math.max(bounded, view.start + span), fit.end);
-	return { start: Math.min(view.start, end - span), end };
-}
-
-/** Recentre the visible domain on a time, keeping its span. */
-export function centreDomain(view: Domain, fit: Domain, ms: number, minSpan: number): Domain {
-	const span = view.end - view.start;
-	return clampDomain({ start: ms - span / 2, end: ms + span / 2 }, fit, minSpan);
-}
-
-/**
- * How many items cover each column of the overview strip. Drawn behind the window so the
- * reader can see where the data actually sits before dragging to it — on a span of
- * millennia, an empty stretch is otherwise indistinguishable from a dense one.
- */
-export function densityBuckets(
-	spans: Array<[number, number]>,
-	fit: Domain,
-	count: number
-): number[] {
-	const out = new Array(Math.max(count, 0)).fill(0);
-	const fitSpan = fit.end - fit.start;
-	if (fitSpan <= 0 || count <= 0) return out;
-
-	const columnOf = (ms: number) => {
-		const raw = Math.floor(((ms - fit.start) / fitSpan) * count);
-		return Math.min(Math.max(raw, 0), count - 1);
-	};
-
-	for (const [start, end] of spans) {
-		// A range covers every column it touches; a point covers exactly one.
-		if (end < fit.start || start > fit.end) continue;
-		const lo = columnOf(Math.max(start, fit.start));
-		const hi = columnOf(Math.min(end, fit.end));
-		for (let i = lo; i <= hi; i++) out[i]++;
-	}
-
-	return out;
 }
 
 /**

@@ -15,8 +15,9 @@ import {
 	KEY_SHOW_AXIS,
 	KEY_SHOW_GROUPS,
 	KEY_SHOW_LABELS,
-	KEY_SHOW_RANGE,
 	KEY_START,
+	KEY_ZOOM_END,
+	KEY_ZOOM_START,
 	TIMELINE_VIEW_TYPE,
 	TimelineView,
 } from './view';
@@ -92,10 +93,18 @@ function viewOptions(config: BasesViewConfig): BasesAllOptions[] {
 			default: true,
 		},
 		{
-			type: 'toggle',
-			key: KEY_SHOW_RANGE,
-			displayName: 'Show range control',
-			default: true,
+			type: 'text',
+			key: KEY_ZOOM_START,
+			displayName: 'Zoom start',
+			default: '',
+			placeholder: 'e.g. 3300 BC',
+		},
+		{
+			type: 'text',
+			key: KEY_ZOOM_END,
+			displayName: 'Zoom end',
+			default: '',
+			placeholder: 'e.g. 1200 BC',
 		},
 	];
 }

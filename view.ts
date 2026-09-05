@@ -9,13 +9,10 @@ import {
 	Value,
 } from 'obsidian';
 
-import { setIcon } from 'obsidian';
-
 import { buildTicks, parseAxisInterval } from './axis';
 import {
 	endOfPoint,
 	formatPoint,
-	formatRangeBound,
 	parseDateText,
 	resolveSpan,
 	TimePoint,
@@ -24,17 +21,14 @@ import {
 } from './dates';
 import {
 	anchorCard,
-	centreDomain,
 	clampDomain,
-	densityBuckets,
 	Domain,
 	LabelSide,
 	labelSide,
 	packLanes,
-	rangeWindow,
 	reserveLabel,
-	resizeDomain,
 	zoomDomain,
+	zoomedFit,
 } from './layout';
 
 export const TIMELINE_VIEW_TYPE = 'timeline';
@@ -49,7 +43,8 @@ export const KEY_SHOW_LABELS = 'showLabels';
 export const KEY_LABEL = 'labelProperty';
 export const KEY_EXTEND_OPEN = 'extendOpenRanges';
 export const KEY_SHOW_GROUPS = 'showGroups';
-export const KEY_SHOW_RANGE = 'showRange';
+export const KEY_ZOOM_START = 'zoomStart';
+export const KEY_ZOOM_END = 'zoomEnd';
 
 export const DEFAULT_DATE: BasesPropertyId = 'note.date';
 export const DEFAULT_START: BasesPropertyId = 'note.date_start';
@@ -101,10 +96,6 @@ const GROUP_HEADER_HEIGHT = 20;
 const GROUP_GAP_PX = 10;
 /** A band with a single lane still needs room for its header and baseline. */
 const MIN_BAND_HEIGHT = 44;
-
-/** Columns in the range control's density strip, and the window's minimum grab width. */
-const RANGE_COLUMNS = 200;
-const MIN_RANGE_WINDOW_PX = 8;
 
 const MIDDLE_BUTTON = 1;
 const DRAG_THRESHOLD_PX = 6;
@@ -197,16 +188,6 @@ export class TimelineView extends BasesView implements HoverParent {
 	private emptyEl: HTMLElement;
 	private cardEl: HTMLElement;
 
-	private rangeEl: HTMLElement;
-	private rangeTrackEl: HTMLElement;
-	private rangeDensityEl: HTMLElement;
-	private rangeWindowEl: HTMLElement;
-	private rangeFromEl: HTMLInputElement;
-	private rangeToEl: HTMLInputElement;
-	/** Set while a range handle or the window itself is being dragged. */
-	private rangeDrag: { mode: 'window' | 'start' | 'end'; pointerId: number; grabMs: number } | null =
-		null;
-
 	private items: TimelineItem[] = [];
 	private groups: TimelineGroup[] = [];
 	/** True when Bases has a groupBy configured, so bands carry titles and separators. */
@@ -262,30 +243,6 @@ export class TimelineView extends BasesView implements HoverParent {
 		this.scrollEl = this.canvasEl.createDiv({ cls: 'timeline-scroll' });
 		this.plotEl = this.scrollEl.createDiv({ cls: 'timeline-plot' });
 		this.axisEl = this.rootEl.createDiv({ cls: 'timeline-axis' });
-
-		// Range control: typed bounds either side of an overview strip showing the whole
-		// extent. On a span of millennia, wheel zoom alone cannot reach a named century.
-		this.rangeEl = this.rootEl.createDiv({ cls: 'timeline-range' });
-		this.rangeFromEl = this.rangeEl.createEl('input', {
-			cls: 'timeline-range-input',
-			attr: { type: 'text', spellcheck: 'false', 'aria-label': 'Range start' },
-		});
-		this.rangeTrackEl = this.rangeEl.createDiv({ cls: 'timeline-range-track' });
-		this.rangeDensityEl = this.rangeTrackEl.createDiv({ cls: 'timeline-range-density' });
-		this.rangeWindowEl = this.rangeTrackEl.createDiv({ cls: 'timeline-range-window' });
-		this.rangeWindowEl.createDiv({ cls: 'timeline-range-handle is-start' });
-		this.rangeWindowEl.createDiv({ cls: 'timeline-range-handle is-end' });
-		this.rangeToEl = this.rangeEl.createEl('input', {
-			cls: 'timeline-range-input',
-			attr: { type: 'text', spellcheck: 'false', 'aria-label': 'Range end' },
-		});
-		const fitEl = this.rangeEl.createDiv({
-			cls: 'timeline-range-fit clickable-icon',
-			attr: { 'aria-label': 'Fit all' },
-		});
-		setIcon(fitEl, 'maximize-2');
-		this.registerDomEvent(fitEl, 'click', () => this.fitAll());
-
 		this.emptyEl = this.rootEl.createDiv({
 			cls: 'timeline-empty',
 			text: 'No dated notes match this Base',
@@ -305,7 +262,6 @@ export class TimelineView extends BasesView implements HoverParent {
 		this.measureEl = this.rootEl.createDiv({ cls: 'timeline-measure' });
 
 		this.registerInteractions();
-		this.registerRangeInteractions();
 	}
 
 	onload(): void {
@@ -332,7 +288,6 @@ export class TimelineView extends BasesView implements HoverParent {
 		this.rebuildItems();
 		this.syncElements();
 		this.updateFitRange();
-		this.renderRangeDensity();
 		this.layout();
 	}
 
@@ -611,8 +566,16 @@ export class TimelineView extends BasesView implements HoverParent {
 
 		const span = max - min;
 		const pad = span > 0 ? span * FIT_PADDING_RATIO : 182 * MS_DAY;
-		const nextStart = min - pad;
-		const nextEnd = max + pad;
+
+		// A configured window replaces the data's own extent and is taken literally: it
+		// names a period, so it gets none of the fit padding. It also becomes the pan and
+		// zoom-out clamp, which is the point — a view called "Bronze Age" should still be
+		// the Bronze Age after the reader has zoomed around inside it.
+		const { start: nextStart, end: nextEnd } = zoomedFit(
+			{ start: min - pad, end: max + pad },
+			this.readZoomBounds(),
+			MIN_SPAN_MS
+		);
 
 		const changed = nextStart !== this.fitStart || nextEnd !== this.fitEnd;
 		this.fitStart = nextStart;
@@ -662,9 +625,6 @@ export class TimelineView extends BasesView implements HoverParent {
 		const showAxis = this.readShowAxis();
 		this.axisEl.toggle(showAxis && !isEmpty);
 
-		const showRange = this.readShowRange();
-		this.rangeEl.toggle(showRange && !isEmpty);
-
 		if (isEmpty) return;
 
 		this.plotWidth = this.canvasEl.clientWidth;
@@ -690,7 +650,6 @@ export class TimelineView extends BasesView implements HoverParent {
 		}
 
 		if (showAxis) this.renderAxis();
-		if (showRange) this.renderRange();
 	}
 
 	/** Decide each label's side before anything measures the space it reserves. */
@@ -839,220 +798,26 @@ export class TimelineView extends BasesView implements HoverParent {
 		}
 	}
 
-	// -------------------------------------------------------------------------
-	// Range control
-	// -------------------------------------------------------------------------
-
-	/** Time under a client x within the overview track. */
-	private rangeTimeAt(clientX: number): number | null {
-		const fit = this.fitDomain();
-		const rect = this.rangeTrackEl.getBoundingClientRect();
-		if (!fit || rect.width <= 0) return null;
-		const ratio = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
-		return fit.start + ratio * (fit.end - fit.start);
-	}
-
-	private fitAll(): void {
-		const fit = this.fitDomain();
-		if (!fit) return;
-		this.applyDomain(fit);
-		this.hideCard();
-		this.layout();
+	private readConfigText(key: string): string {
+		const raw = this.config.get(key);
+		return raw === undefined || raw === null ? '' : String(raw);
 	}
 
 	/**
-	 * Redraw the density strip. Only the data and the fit range change it, so it is
-	 * rebuilt on data updates rather than on every pan and zoom frame.
+	 * The zoom window this view is pinned to, if any. Either bound may be set on its own,
+	 * in which case the other stays at the data's own extent.
+	 *
+	 * Bounds are parsed by the same code as note frontmatter, so `3300 BC` works here
+	 * exactly as it does in a property. A year-only end covers the whole of that year:
+	 * a view running to `1200 BC` means through it, not to the instant it began.
 	 */
-	private renderRangeDensity(): void {
-		this.rangeDensityEl.empty();
-		const fit = this.fitDomain();
-		if (!fit) return;
-
-		const counts = densityBuckets(
-			this.items.map((item) => [item.start.ms, item.end.ms] as [number, number]),
-			fit,
-			RANGE_COLUMNS
-		);
-		const peak = counts.reduce((a, b) => Math.max(a, b), 0);
-		if (peak <= 0) return;
-
-		for (const count of counts) {
-			const col = this.rangeDensityEl.createDiv({ cls: 'timeline-range-column' });
-			// A column with anything in it stays visible; the rest of the scale conveys
-			// how much, so a lone event is not lost next to a crowded millennium.
-			col.style.opacity = count === 0 ? '0' : `${0.35 + 0.65 * (count / peak)}`;
-		}
-	}
-
-	private renderRange(): void {
-		const fit = this.fitDomain();
-		if (!fit) return;
-
-		const trackWidth = this.rangeTrackEl.clientWidth;
-		const { left, width } = rangeWindow(
-			{ start: this.viewStart, end: this.viewEnd },
-			fit,
-			trackWidth
-		);
-		this.rangeWindowEl.style.left = `${left}px`;
-		this.rangeWindowEl.style.width = `${Math.max(width, MIN_RANGE_WINDOW_PX)}px`;
-
-		// Writing over a field mid-edit would fight the user for the caret.
-		const span = this.viewEnd - this.viewStart;
-		const active = this.rangeEl.ownerDocument.activeElement;
-		if (active !== this.rangeFromEl) {
-			this.rangeFromEl.value = formatRangeBound(this.viewStart, span);
-		}
-		if (active !== this.rangeToEl) {
-			this.rangeToEl.value = formatRangeBound(this.viewEnd, span);
-		}
-	}
-
-	private registerRangeInteractions(): void {
-		this.registerDomEvent(this.rangeTrackEl, 'pointerdown', (ev: PointerEvent) => {
-			if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-			const ms = this.rangeTimeAt(ev.clientX);
-			if (ms === null) return;
-
-			ev.preventDefault();
-			this.hideCard();
-
-			const target = ev.target instanceof Element ? ev.target : null;
-			const handle = target?.closest('.timeline-range-handle');
-
-			if (handle) {
-				this.rangeDrag = {
-					mode: handle.hasClass('is-start') ? 'start' : 'end',
-					pointerId: ev.pointerId,
-					grabMs: 0,
-				};
-			} else if (target?.closest('.timeline-range-window')) {
-				// Grab the window where it was picked up, so it does not jump under the
-				// pointer on the first move.
-				this.rangeDrag = { mode: 'window', pointerId: ev.pointerId, grabMs: ms - this.viewStart };
-			} else {
-				// A press on bare track jumps the window there and then keeps dragging it,
-				// so aiming and adjusting are one gesture rather than two.
-				const fit = this.fitDomain();
-				if (!fit) return;
-				this.applyDomain(centreDomain({ start: this.viewStart, end: this.viewEnd }, fit, ms, MIN_SPAN_MS));
-				this.rangeDrag = { mode: 'window', pointerId: ev.pointerId, grabMs: ms - this.viewStart };
-				this.layout();
-			}
-
-			this.rangeTrackEl.setPointerCapture(ev.pointerId);
-			this.rangeTrackEl.addClass('is-dragging');
-		});
-
-		this.registerDomEvent(this.rangeTrackEl, 'pointermove', (ev: PointerEvent) => {
-			const drag = this.rangeDrag;
-			if (!drag || ev.pointerId !== drag.pointerId) return;
-
-			const fit = this.fitDomain();
-			const ms = this.rangeTimeAt(ev.clientX);
-			if (!fit || ms === null) return;
-
-			const view = { start: this.viewStart, end: this.viewEnd };
-			if (drag.mode === 'window') {
-				const span = view.end - view.start;
-				const start = ms - drag.grabMs;
-				this.applyDomain(clampDomain({ start, end: start + span }, fit, MIN_SPAN_MS));
-			} else {
-				this.applyDomain(resizeDomain(view, fit, drag.mode, ms, MIN_SPAN_MS));
-			}
-			this.layout();
-		});
-
-		const endRangeDrag = (ev: PointerEvent) => {
-			const drag = this.rangeDrag;
-			if (!drag || ev.pointerId !== drag.pointerId) return;
-			this.rangeDrag = null;
-			this.rangeTrackEl.removeClass('is-dragging');
-			if (this.rangeTrackEl.hasPointerCapture(ev.pointerId)) {
-				this.rangeTrackEl.releasePointerCapture(ev.pointerId);
-			}
+	private readZoomBounds(): { start: number | null; end: number | null } {
+		const startPoint = parseDateText(this.readConfigText(KEY_ZOOM_START));
+		const endPoint = parseDateText(this.readConfigText(KEY_ZOOM_END));
+		return {
+			start: startPoint ? startPoint.ms : null,
+			end: endPoint ? endOfPoint(endPoint) : null,
 		};
-		this.registerDomEvent(this.rangeTrackEl, 'pointerup', endRangeDrag);
-		this.registerDomEvent(this.rangeTrackEl, 'pointercancel', endRangeDrag);
-
-		this.registerDomEvent(this.rangeTrackEl, 'dblclick', () => this.fitAll());
-
-		// Same reasoning as the canvas: Obsidian's swipe gestures run from touch events
-		// on an ancestor and would take the drag away part-way through.
-		this.registerDomEvent(
-			this.rangeTrackEl,
-			'touchmove',
-			(ev: TouchEvent) => {
-				if (ev.cancelable) ev.preventDefault();
-				ev.stopPropagation();
-			},
-			{ passive: false }
-		);
-
-		// `change` rather than `blur`: it does not fire when the value is untouched, so
-		// simply tabbing through the fields cannot nudge the domain.
-		const edges: Array<['start' | 'end', HTMLInputElement]> = [
-			['start', this.rangeFromEl],
-			['end', this.rangeToEl],
-		];
-		for (const [edge, input] of edges) {
-			this.registerDomEvent(input, 'change', () => this.commitRangeInput(edge));
-			this.registerDomEvent(input, 'keydown', (ev: KeyboardEvent) => {
-				if (ev.key === 'Enter') {
-					input.blur();
-					return;
-				}
-				if (ev.key !== 'Escape') return;
-				// Put the value back before blurring: restoring it afterwards would be
-				// too late, since blur fires the change handler on the edited text.
-				ev.preventDefault();
-				this.showRangeBound(edge);
-				input.blur();
-			});
-		}
-	}
-
-	/**
-	 * Write the current domain into one bound field. Used wherever the field has to be
-	 * corrected while it still holds focus, which renderRange() deliberately will not do.
-	 */
-	private showRangeBound(edge: 'start' | 'end'): void {
-		const input = edge === 'start' ? this.rangeFromEl : this.rangeToEl;
-		const ms = edge === 'start' ? this.viewStart : this.viewEnd;
-		input.value = formatRangeBound(ms, this.viewEnd - this.viewStart);
-	}
-
-	/**
-	 * Apply a typed bound. The text goes through the same parser as note frontmatter, so
-	 * `3000 BC`, `1969-07` and a bare year all work. A year-only end covers that whole
-	 * year: someone typing `1000 BC` as the end means through it, not the instant it began.
-	 */
-	private commitRangeInput(edge: 'start' | 'end'): void {
-		const fit = this.fitDomain();
-		if (!fit) return;
-
-		const input = edge === 'start' ? this.rangeFromEl : this.rangeToEl;
-		const point = parseDateText(input.value);
-		if (!point) {
-			// Unreadable input reverts rather than silently moving the view somewhere odd.
-			// Written straight to the field: change can arrive while it still has focus,
-			// and renderRange() will not overwrite a focused field.
-			this.showRangeBound(edge);
-			return;
-		}
-
-		const ms = edge === 'start' ? point.ms : endOfPoint(point);
-		this.applyDomain(
-			resizeDomain({ start: this.viewStart, end: this.viewEnd }, fit, edge, ms, MIN_SPAN_MS)
-		);
-		this.hideCard();
-		this.layout();
-	}
-
-	private readShowRange(): boolean {
-		const raw = this.config.get(KEY_SHOW_RANGE);
-		return raw === undefined || raw === null ? true : Boolean(raw);
 	}
 
 	private readShowAxis(): boolean {

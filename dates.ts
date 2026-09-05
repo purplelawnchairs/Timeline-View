@@ -236,18 +236,6 @@ export function endOfPoint(point: TimePoint): number {
 	return utcFromParts(year + 1);
 }
 
-/**
- * Label for a range bound. A window spanning centuries has no use for a day and month,
- * and showing them invites the reader to edit a precision the view cannot display.
- */
-export function formatRangeBound(ms: number, spanMs: number): string {
-	const d = new Date(ms);
-	const year = d.getUTCFullYear();
-	if (spanMs >= 2 * 365 * MS_DAY_LOCAL) return formatYear(year);
-	if (spanMs >= 60 * MS_DAY_LOCAL) return formatMonthYear(ms);
-	return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${formatYear(year)}`;
-}
-
 export function formatMonthYear(ms: number): string {
 	const d = new Date(ms);
 	return `${MONTHS[d.getUTCMonth()]} ${formatYear(d.getUTCFullYear())}`;
