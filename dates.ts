@@ -12,10 +12,20 @@ export interface TimePoint {
 const YEAR_ONLY = /^(-?\d{1,6})$/;
 const YEAR_MONTH = /^(-?\d{1,6})-(\d{1,2})$/;
 const ISO_DATE = /^(-?\d{1,6})-(\d{1,2})-(\d{1,2})/;
-/** `500 BC`, `44 BCE`, `1200 AD`, `70 C.E.` */
-const ERA_SUFFIX = /^(\d{1,6})\s*(bce|bc|b\.c\.e\.|b\.c\.|ce|ad|c\.e\.|a\.d\.|ac|AC|a.c.|A.C.|dc|DC|d.c.|D.C.)$/i;
-/** `AD 1200`, `CE 70` */
-const ERA_PREFIX = /^(ad|ce|a\.d\.|c\.e\.)\s*(\d{1,6})$/i;
+/**
+ * `500 BC`, `44 BCE`, `1200 AD`, `70 C.E.`, and the Romance-language equivalents
+ * `500 a.C.` (antes de Cristo) and `1200 d.C.` (después/dopo Cristo).
+ */
+const ERA_SUFFIX = /^(\d{1,6})\s*(bce|bc|b\.c\.e\.|b\.c\.|ce|ad|c\.e\.|a\.d\.|a\.c\.|ac|d\.c\.|dc)$/i;
+/** `AD 1200`, `CE 70`, `d.C. 1200` */
+const ERA_PREFIX = /^(ad|ce|a\.d\.|c\.e\.|d\.c\.|dc)\s*(\d{1,6})$/i;
+
+/**
+ * Era markers meaning "before the common era". `a.C.` is included because Romance
+ * languages abbreviate *antes de Cristo* that way — it must not be mistaken for the
+ * English `A.D.`, which shares its first letter but means the opposite.
+ */
+const BC_ERAS = new Set(['bc', 'bce', 'b.c.', 'b.c.e.', 'ac', 'a.c.']);
 
 /** Guards against dates outside the range JS Date can represent (roughly ±271,821). */
 function point(ms: number, yearOnly: boolean): TimePoint | null {
@@ -81,7 +91,7 @@ function parseEra(input: string): TimePoint | null {
 	// Neither era has a year zero.
 	if (year < 1) return null;
 
-	const isBc = era[0] === 'b' || era[0] === 'B';
+	const isBc = BC_ERAS.has(era.toLowerCase());
 	return point(utcFromParts(isBc ? 1 - year : year), true);
 }
 
@@ -142,6 +152,53 @@ export function toTimePoint(value: Value | null): TimePoint | null {
 	if (!text || text === 'null' || text === 'undefined') return null;
 
 	return parseString(text);
+}
+
+/** Today at UTC midnight, as the open end of an ongoing period. */
+export function todayMs(): number {
+	const now = new Date();
+	return utcFromParts(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+}
+
+/**
+ * The span an entry occupies, resolved from its three candidate properties.
+ *
+ * `isOpen` marks a period whose end is unknown: the end property is absent, blank, or
+ * holds something that is not a date ("present", "ongoing", a placeholder dash). Those
+ * run to today rather than collapsing to a dot, so a reign or a war still reads as a
+ * period. A start with no end is only meaningful as a range if it is in the past;
+ * a future-dated start falls back to a point.
+ *
+ * Kept separate from the entry so the branching is testable without a live vault.
+ */
+export function resolveSpan(
+	startPoint: TimePoint | null,
+	endPoint: TimePoint | null,
+	datePoint: TimePoint | null,
+	nowMs: number,
+	extendOpen: boolean
+): { start: TimePoint; end: TimePoint; isRange: boolean; isOpen: boolean } | null {
+	if (startPoint && endPoint && endPoint.ms > startPoint.ms) {
+		return { start: startPoint, end: endPoint, isRange: true, isOpen: false };
+	}
+
+	if (startPoint) {
+		// Only an unreadable end is treated as open. An end that parsed but lands at or
+		// before the start is bad data, not an ongoing period, and stays a point.
+		if (extendOpen && endPoint === null && nowMs > startPoint.ms) {
+			return {
+				start: startPoint,
+				end: { ms: nowMs, yearOnly: false },
+				isRange: true,
+				isOpen: true,
+			};
+		}
+		return { start: startPoint, end: startPoint, isRange: false, isOpen: false };
+	}
+
+	if (endPoint) return { start: endPoint, end: endPoint, isRange: false, isOpen: false };
+	if (datePoint) return { start: datePoint, end: datePoint, isRange: false, isOpen: false };
+	return null;
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
